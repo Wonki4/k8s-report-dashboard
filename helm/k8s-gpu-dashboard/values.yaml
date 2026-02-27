@@ -1,0 +1,85 @@
+# K8s GPU Dashboard - Helm Values
+# Override these values for your environment.
+
+replicaCount: 1
+
+image:
+  repository: k8s-gpu-dashboard
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+rbac:
+  create: true
+
+service:
+  type: ClusterIP
+  port: 80
+
+ingress:
+  enabled: false
+  className: nginx
+  annotations: {}
+    # nginx.ingress.kubernetes.io/rewrite-target: /
+  hosts:
+    - host: gpu-dashboard.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+  #  - secretName: gpu-dashboard-tls
+  #    hosts:
+  #      - gpu-dashboard.local
+
+env:
+  DASHBOARD_HOST: "0.0.0.0"
+  DASHBOARD_PORT: "8000"
+  CORS_ORIGINS: "*"
+  PYTHONUNBUFFERED: "1"
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+# Liveness and readiness probes
+probes:
+  liveness:
+    path: /api/clusters
+    initialDelaySeconds: 10
+    periodSeconds: 30
+  readiness:
+    path: /api/clusters
+    initialDelaySeconds: 5
+    periodSeconds: 10
+
+# Multi-cluster: mount a kubeconfig with multiple contexts
+kubeconfig:
+  enabled: false
+  # Use an existing Secret (created manually via kubectl create secret)
+  # kubectl create secret generic gpu-dashboard-kubeconfig --from-file=config=$HOME/.kube/config
+  existingSecret: ""
+  # Or provide kubeconfig content inline (base64-encoded)
+  # Generate with: cat ~/.kube/config | base64 | tr -d '\n'
+  data: ""
+  # Mount path inside the container
+  mountPath: /etc/kubeconfig
+  # Filename for the kubeconfig file
+  fileName: config

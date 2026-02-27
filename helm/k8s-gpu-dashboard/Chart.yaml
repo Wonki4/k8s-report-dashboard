@@ -1,0 +1,12 @@
+apiVersion: v2
+name: k8s-gpu-dashboard
+description: Kubernetes GPU Dashboard - Multi-cluster GPU resource monitoring
+type: application
+version: 0.1.0
+appVersion: "2.0.0"
+keywords:
+  - kubernetes
+  - gpu
+  - dashboard
+  - monitoring
+  - nvidia

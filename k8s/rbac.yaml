@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: gpu-dashboard
+  namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: gpu-dashboard-read
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "nodes", "namespaces"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]  # For custom objects if needed
+    resources: ["pods/log"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: gpu-dashboard-read-binding
+subjects:
+  - kind: ServiceAccount
+    name: gpu-dashboard
+    namespace: default
+roleRef:
+  kind: ClusterRole
+  name: gpu-dashboard-read
+  apiGroup: rbac.authorization.k8s.io
