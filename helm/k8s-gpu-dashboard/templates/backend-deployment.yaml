@@ -1,0 +1,82 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "k8s-gpu-dashboard.backend.fullname" . }}
+  labels:
+    {{- include "k8s-gpu-dashboard.backend.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.backend.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "k8s-gpu-dashboard.backend.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "k8s-gpu-dashboard.backend.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "k8s-gpu-dashboard.backend.serviceAccountName" . }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: backend
+          image: "{{ .Values.backend.image.repository }}:{{ .Values.backend.image.tag }}"
+          imagePullPolicy: {{ .Values.backend.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          env:
+            {{- range $key, $value := .Values.backend.env }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+            {{- if .Values.backend.kubeconfig.enabled }}
+            - name: KUBECONFIG
+              value: {{ printf "%s/%s" .Values.backend.kubeconfig.mountPath .Values.backend.kubeconfig.fileName | quote }}
+            {{- end }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.backend.probes.liveness.path }}
+              port: http
+            initialDelaySeconds: {{ .Values.backend.probes.liveness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.backend.probes.liveness.periodSeconds }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.backend.probes.readiness.path }}
+              port: http
+            initialDelaySeconds: {{ .Values.backend.probes.readiness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.backend.probes.readiness.periodSeconds }}
+          {{- with .Values.backend.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- if .Values.backend.kubeconfig.enabled }}
+          volumeMounts:
+            - name: kubeconfig
+              mountPath: {{ .Values.backend.kubeconfig.mountPath }}
+              readOnly: true
+          {{- end }}
+      {{- with .Values.backend.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.backend.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.backend.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.backend.kubeconfig.enabled }}
+      volumes:
+        - name: kubeconfig
+          secret:
+            {{- if .Values.backend.kubeconfig.existingSecret }}
+            secretName: {{ .Values.backend.kubeconfig.existingSecret }}
+            {{- else }}
+            secretName: {{ include "k8s-gpu-dashboard.backend.fullname" . }}-kubeconfig
+            {{- end }}
+      {{- end }}
