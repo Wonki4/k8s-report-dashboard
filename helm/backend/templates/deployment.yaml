@@ -1,26 +1,26 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "k8s-gpu-dashboard.fullname" . }}
+  name: {{ include "k8s-gpu-dashboard-backend.fullname" . }}
   labels:
-    {{- include "k8s-gpu-dashboard.labels" . | nindent 4 }}
+    {{- include "k8s-gpu-dashboard-backend.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      {{- include "k8s-gpu-dashboard.selectorLabels" . | nindent 6 }}
+      {{- include "k8s-gpu-dashboard-backend.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "k8s-gpu-dashboard.selectorLabels" . | nindent 8 }}
+        {{- include "k8s-gpu-dashboard-backend.selectorLabels" . | nindent 8 }}
     spec:
-      serviceAccountName: {{ include "k8s-gpu-dashboard.serviceAccountName" . }}
+      serviceAccountName: {{ include "k8s-gpu-dashboard-backend.serviceAccountName" . }}
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       containers:
-        - name: dashboard
+        - name: backend
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
@@ -77,6 +77,6 @@ spec:
             {{- if .Values.kubeconfig.existingSecret }}
             secretName: {{ .Values.kubeconfig.existingSecret }}
             {{- else }}
-            secretName: {{ include "k8s-gpu-dashboard.fullname" . }}-kubeconfig
+            secretName: {{ include "k8s-gpu-dashboard-backend.fullname" . }}-kubeconfig
             {{- end }}
       {{- end }}
