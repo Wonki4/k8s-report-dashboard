@@ -26,6 +26,7 @@ env:
   DASHBOARD_PORT: "8000"
   CORS_ORIGINS: "*"
   PYTHONUNBUFFERED: "1"
+  CACHE_TTL: "30"
 
 resources:
   requests:
@@ -33,7 +34,7 @@ resources:
     memory: 128Mi
   limits:
     cpu: 500m
-    memory: 256Mi
+    memory: 512Mi
 
 nodeSelector: {}
 
@@ -43,11 +44,11 @@ affinity: {}
 
 probes:
   liveness:
-    path: /api/clusters
+    path: /healthz
     initialDelaySeconds: 10
-    periodSeconds: 30
+    periodSeconds: 15
   readiness:
-    path: /api/clusters
+    path: /healthz
     initialDelaySeconds: 5
     periodSeconds: 10
 

@@ -1,3 +1,6 @@
+import os
+import time
+import logging
 from typing import List, Dict, Optional, Tuple
 from kubernetes import client, config
 from models import (
@@ -14,6 +17,8 @@ from models import (
     ClusterInfo,
 )
 
+logger = logging.getLogger(__name__)
+
 GPU_RESOURCE = "nvidia.com/gpu"
 
 GPU_TYPE_LABELS = [
@@ -24,10 +29,16 @@ GPU_TYPE_LABELS = [
     "node.kubernetes.io/instance-type",
 ]
 
+# ---------------------------------------------------------------------------
+# Configuration from environment
+# ---------------------------------------------------------------------------
+CACHE_TTL = int(os.getenv("CACHE_TTL", "30"))            # TTL for cached responses (seconds)
+
 
 class K8sClient:
     def __init__(self, context: Optional[str] = None):
         self._in_cluster = False
+        self._cache: Dict[str, tuple] = {}
         try:
             config.load_incluster_config()
             self._in_cluster = True
@@ -40,6 +51,23 @@ class K8sClient:
                 config.load_kube_config()
                 self.core = client.CoreV1Api()
 
+    # ------------------------------------------------------------------
+    # TTL cache
+    # ------------------------------------------------------------------
+    def _get_cached(self, key: str, fn, ttl: int = CACHE_TTL):
+        """Return cached value if still fresh, otherwise call *fn* and cache."""
+        now = time.monotonic()
+        if key in self._cache:
+            value, ts = self._cache[key]
+            if now - ts < ttl:
+                return value
+        result = fn()
+        self._cache[key] = (result, now)
+        return result
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
     def _extract_gpu_type(self, labels: Dict[str, str]) -> str:
         for key in GPU_TYPE_LABELS:
             if key in labels:
@@ -139,7 +167,21 @@ class K8sClient:
             labels=pod_labels,
         )
 
+    # ------------------------------------------------------------------
+    # Public API (cached)
+    # ------------------------------------------------------------------
     def get_nodes_with_pods(self) -> List[NodeDetail]:
+        return self._get_cached("nodes_with_pods", self._fetch_nodes_with_pods)
+
+    def get_cluster_summary(self) -> ClusterSummary:
+        return self._get_cached("cluster_summary", self._build_cluster_summary)
+
+    # ------------------------------------------------------------------
+    # Fetchers (actual K8s API calls — no timeout so large clusters
+    # can return all data without being cut off)
+    # ------------------------------------------------------------------
+    def _fetch_nodes_with_pods(self) -> List[NodeDetail]:
+        logger.info("Fetching nodes and pods from K8s API")
         all_nodes = self.core.list_node().items
         all_pods = self.core.list_pod_for_all_namespaces().items
 
@@ -202,7 +244,7 @@ class K8sClient:
 
         return result
 
-    def get_cluster_summary(self) -> ClusterSummary:
+    def _build_cluster_summary(self) -> ClusterSummary:
         """Get aggregated cluster-wide resource statistics."""
         nodes = self.get_nodes_with_pods()
 
@@ -297,7 +339,7 @@ class K8sClient:
             ),
             pods=ResourceStat(
                 total=pods_total,
-                allocatable=pods_total,  # Pods don't have allocatable in same sense
+                allocatable=pods_total,
                 used=pods_total,
                 available=0,
                 utilization_percent=0.0,
@@ -311,6 +353,10 @@ class K8sClient:
             gpu_by_type=gpu_by_type,
         )
 
+
+# ---------------------------------------------------------------------------
+# Client cache (one K8sClient per context)
+# ---------------------------------------------------------------------------
 _clients: Dict[str, K8sClient] = {}
 
 
@@ -322,11 +368,23 @@ def get_k8s_client(context: Optional[str] = None) -> K8sClient:
     return _clients[cache_key]
 
 
+# ---------------------------------------------------------------------------
+# Cluster listing (with its own TTL cache)
+# ---------------------------------------------------------------------------
+_cluster_cache: Dict[str, tuple] = {}
+
+
 def list_clusters() -> Tuple[List[ClusterInfo], Optional[str]]:
-    """List available kubeconfig contexts.
+    """List available kubeconfig contexts (cached).
     Returns (clusters, active_context_name).
     For in-cluster mode, returns a single 'in-cluster' entry.
     """
+    now = time.monotonic()
+    if "clusters" in _cluster_cache:
+        value, ts = _cluster_cache["clusters"]
+        if now - ts < CACHE_TTL:
+            return value
+
     try:
         contexts, active = config.list_kube_config_contexts()
         active_name = active["name"] if active else None
@@ -334,7 +392,9 @@ def list_clusters() -> Tuple[List[ClusterInfo], Optional[str]]:
             ClusterInfo(name=ctx["name"], is_active=(ctx["name"] == active_name))
             for ctx in contexts
         ]
-        return clusters, active_name
+        result = clusters, active_name
     except config.ConfigException:
-        # In-cluster mode: no kubeconfig available
-        return [ClusterInfo(name="in-cluster", is_active=True)], "in-cluster"
+        result = [ClusterInfo(name="in-cluster", is_active=True)], "in-cluster"
+
+    _cluster_cache["clusters"] = (result, now)
+    return result

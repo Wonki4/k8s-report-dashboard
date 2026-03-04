@@ -1,14 +1,19 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
-from typing import List
-import uvicorn
+import asyncio
+import logging
 import os
 from pathlib import Path
+from typing import List
 
-from models import NodeDetail, ClusterSummary, ClusterInfo
+import uvicorn
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+
 from k8s_client import get_k8s_client, list_clusters
+from models import ClusterInfo, ClusterSummary, NodeDetail
+
+logging.basicConfig(level=logging.INFO)
 
 app = FastAPI(title="K8s GPU Dashboard", version="2.0.0")
 
@@ -20,33 +25,52 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+# ---------------------------------------------------------------------------
+# Health check — lightweight, no K8s API dependency
+# ---------------------------------------------------------------------------
+@app.get("/healthz")
+async def healthz():
+    return {"status": "ok"}
+
+
+# ---------------------------------------------------------------------------
+# API endpoints — all blocking K8s calls run in a thread pool via
+# asyncio.to_thread() so the event loop stays responsive for health probes.
+# ---------------------------------------------------------------------------
 @app.get("/api/cluster-summary", response_model=ClusterSummary)
 async def get_cluster_summary():
-    return get_k8s_client().get_cluster_summary()
-
+    k8s = get_k8s_client()
+    return await asyncio.to_thread(k8s.get_cluster_summary)
 
 
 @app.get("/api/nodes", response_model=List[NodeDetail])
 async def get_nodes():
-    return get_k8s_client().get_nodes_with_pods()
+    k8s = get_k8s_client()
+    return await asyncio.to_thread(k8s.get_nodes_with_pods)
 
 
 @app.get("/api/clusters", response_model=List[ClusterInfo])
 async def get_clusters():
-    clusters, _ = list_clusters()
+    clusters, _ = await asyncio.to_thread(list_clusters)
     return clusters
 
 
 @app.get("/api/clusters/{cluster_name}/nodes", response_model=List[NodeDetail])
 async def get_cluster_nodes(cluster_name: str):
-    return get_k8s_client(context=cluster_name).get_nodes_with_pods()
+    k8s = get_k8s_client(context=cluster_name)
+    return await asyncio.to_thread(k8s.get_nodes_with_pods)
 
 
 @app.get("/api/clusters/{cluster_name}/summary", response_model=ClusterSummary)
 async def get_cluster_summary_by_name(cluster_name: str):
-    return get_k8s_client(context=cluster_name).get_cluster_summary()
+    k8s = get_k8s_client(context=cluster_name)
+    return await asyncio.to_thread(k8s.get_cluster_summary)
 
+
+# ---------------------------------------------------------------------------
 # Serve frontend static files in production (Docker build)
+# ---------------------------------------------------------------------------
 static_dir = Path(__file__).parent / "static"
 if static_dir.exists():
     app.mount("/assets", StaticFiles(directory=str(static_dir / "assets")), name="assets")
