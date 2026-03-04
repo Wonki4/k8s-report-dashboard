@@ -1,6 +1,6 @@
 apiVersion: v2
-name: k8s-gpu-dashboard-frontend
-description: Kubernetes GPU Dashboard - Frontend Web UI
+name: k8s-gpu-dashboard
+description: Kubernetes GPU Dashboard - Full stack (Backend API + Frontend UI)
 type: application
 version: 0.1.0
 appVersion: "2.0.0"
@@ -9,5 +9,3 @@ keywords:
   - gpu
   - dashboard
   - monitoring
-  - frontend
-  - nginx

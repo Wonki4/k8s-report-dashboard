@@ -1,10 +1,10 @@
-{{- if .Values.rbac.create -}}
+{{- if .Values.backend.rbac.create -}}
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: {{ include "k8s-gpu-dashboard-backend.fullname" . }}-read
+  name: {{ include "k8s-gpu-dashboard.backend.fullname" . }}-read
   labels:
-    {{- include "k8s-gpu-dashboard-backend.labels" . | nindent 4 }}
+    {{- include "k8s-gpu-dashboard.backend.labels" . | nindent 4 }}
 rules:
   - apiGroups: [""]
     resources: ["pods", "nodes", "namespaces"]
@@ -16,15 +16,15 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: {{ include "k8s-gpu-dashboard-backend.fullname" . }}-read-binding
+  name: {{ include "k8s-gpu-dashboard.backend.fullname" . }}-read-binding
   labels:
-    {{- include "k8s-gpu-dashboard-backend.labels" . | nindent 4 }}
+    {{- include "k8s-gpu-dashboard.backend.labels" . | nindent 4 }}
 subjects:
   - kind: ServiceAccount
-    name: {{ include "k8s-gpu-dashboard-backend.serviceAccountName" . }}
+    name: {{ include "k8s-gpu-dashboard.backend.serviceAccountName" . }}
     namespace: {{ .Release.Namespace }}
 roleRef:
   kind: ClusterRole
-  name: {{ include "k8s-gpu-dashboard-backend.fullname" . }}-read
+  name: {{ include "k8s-gpu-dashboard.backend.fullname" . }}-read
   apiGroup: rbac.authorization.k8s.io
 {{- end }}
