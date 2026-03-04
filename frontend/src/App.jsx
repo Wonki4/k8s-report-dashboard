@@ -265,6 +265,29 @@ function App() {
       .sort((a, b) => a.ownerKey.localeCompare(b.ownerKey))
   }, [workloadPods])
 
+  const nodeGpuTypeMap = useMemo(() => {
+    const map = {}
+    nodes.forEach(n => { map[n.name] = n.gpu_type })
+    return map
+  }, [nodes])
+
+  const workloadByGpuType = useMemo(() => {
+    const map = {}
+    workloadPods.forEach(({ pod, nodeName, clusterName, nodeReady }) => {
+      const gpuType = nodeGpuTypeMap[nodeName] || 'N/A'
+      if (!map[gpuType]) map[gpuType] = { gpuType, pods: [], gpu: 0, cpuMillis: 0, memBytes: 0, nodeSet: new Set() }
+      map[gpuType].pods.push({ pod, nodeName, clusterName, nodeReady })
+      map[gpuType].gpu += pod.gpu_request || 0
+      map[gpuType].cpuMillis += pod.cpu_request_millicores || 0
+      map[gpuType].memBytes += pod.memory_request_bytes || 0
+      map[gpuType].nodeSet.add(nodeName)
+    })
+    return Object.values(map)
+      .map(row => ({ ...row, nodeCount: row.nodeSet.size }))
+      .sort((a, b) => a.gpuType.localeCompare(b.gpuType))
+  }, [workloadPods, nodeGpuTypeMap])
+
+
   const workloadTotals = useMemo(() => ({
     pods: workloadPods.length,
     gpu: workloadPods.reduce((s, { pod }) => s + (pod.gpu_request || 0), 0),
@@ -736,6 +759,10 @@ function App() {
                       onClick={() => setExpandedWlNode(isExpanded ? null : row.nodeName)}
                     >
                       <span className="wl-col-node">
+                <button
+                  className={`wl-mode-btn ${wlGroupBy === 'gpu-type' ? 'active' : ''}`}
+                  onClick={() => { setWlGroupBy('gpu-type'); setExpandedWlNode(null) }}
+                >GPU Type</button>
                         <span className={`ready-dot ${row.ready ? 'ok' : 'bad'}`} />
                         <span className="wl-node-name">{row.nodeName}</span>
                         {row.clusterName && <span className="tag cluster-badge">{row.clusterName}</span>}
@@ -839,6 +866,58 @@ function formatBytes(bytes) {
   const i = Math.floor(Math.log(bytes) / Math.log(1024))
   return (bytes / Math.pow(1024, i)).toFixed(1) + ' ' + units[i]
 }
+
+
+          {wlGroupBy === 'gpu-type' && hasWorkloadFilter && workloadByGpuType.length > 0 && (
+            <div className="wl-table">
+              <div className="wl-table-header wl-by-gpu-type">
+                <span className="wl-col-gpu-type">GPU Type</span>
+                <span className="wl-col-pods">Pods</span>
+                <span className="wl-col-nodes">Nodes</span>
+                <span className="wl-col-gpu">GPU</span>
+                <span className="wl-col-cpu">CPU</span>
+                <span className="wl-col-mem">Memory</span>
+              </div>
+              {workloadByGpuType.map(row => {
+                const expandKey = `gpu-type:${row.gpuType}`
+                const isExpanded = expandedWlNode === expandKey
+                return (
+                  <div key={row.gpuType} className="wl-node-group">
+                    <div
+                      className={`wl-node-row wl-by-gpu-type ${isExpanded ? 'expanded' : ''}`}
+                      onClick={() => setExpandedWlNode(isExpanded ? null : expandKey)}
+                    >
+                      <span className="wl-col-gpu-type">
+                        <span className="wl-gpu-type-badge">{row.gpuType}</span>
+                      </span>
+                      <span className="wl-col-pods">{row.pods.length}</span>
+                      <span className="wl-col-nodes">{row.nodeCount}</span>
+                      <span className="wl-col-gpu">{row.gpu > 0 ? <span className="gpu-count">{row.gpu}</span> : <span className="no-gpu">-</span>}</span>
+                      <span className="wl-col-cpu">{(row.cpuMillis / 1000).toFixed(1)}</span>
+                      <span className="wl-col-mem">{formatBytes(row.memBytes)}</span>
+                    </div>
+                    {isExpanded && (
+                      <div className="wl-pod-list">
+                        {row.pods.map(({ pod, nodeName, clusterName }) => (
+                          <div key={pod.name} className="wl-pod-row wl-pod-by-gpu-type">
+                            <span className={`phase ${pod.phase.toLowerCase()}`}>{pod.phase}</span>
+                            <span className="wl-pod-name" title={pod.name}>{pod.name}</span>
+                            <span className="wl-pod-node">
+                              {nodeName}
+                              {clusterName && <span className="tag cluster-badge">{clusterName}</span>}
+                            </span>
+                            <span className="wl-pod-gpu">{pod.gpu_request > 0 ? pod.gpu_request : '-'}</span>
+                            <span className="wl-pod-cpu">{(pod.cpu_request_millicores / 1000).toFixed(1)}</span>
+                            <span className="wl-pod-mem">{formatBytes(pod.memory_request_bytes)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
 
 function formatBytesRaw(b) {
   for (const u of ['B', 'KiB', 'MiB', 'GiB', 'TiB']) {

@@ -1,14 +1,14 @@
 {{/*
 Expand the name of the chart.
 */}}
-{{- define "k8s-gpu-dashboard.name" -}}
+{{- define "k8s-gpu-dashboard-backend.name" -}}
 {{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
 {{/*
 Create a default fully qualified app name.
 */}}
-{{- define "k8s-gpu-dashboard.fullname" -}}
+{{- define "k8s-gpu-dashboard-backend.fullname" -}}
 {{- if .Values.fullnameOverride }}
 {{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
 {{- else }}
@@ -24,16 +24,16 @@ Create a default fully qualified app name.
 {{/*
 Create chart name and version as used by the chart label.
 */}}
-{{- define "k8s-gpu-dashboard.chart" -}}
+{{- define "k8s-gpu-dashboard-backend.chart" -}}
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
 {{/*
 Common labels
 */}}
-{{- define "k8s-gpu-dashboard.labels" -}}
-helm.sh/chart: {{ include "k8s-gpu-dashboard.chart" . }}
-{{ include "k8s-gpu-dashboard.selectorLabels" . }}
+{{- define "k8s-gpu-dashboard-backend.labels" -}}
+helm.sh/chart: {{ include "k8s-gpu-dashboard-backend.chart" . }}
+{{ include "k8s-gpu-dashboard-backend.selectorLabels" . }}
 {{- if .Chart.AppVersion }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
@@ -43,17 +43,17 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{/*
 Selector labels
 */}}
-{{- define "k8s-gpu-dashboard.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "k8s-gpu-dashboard.name" . }}
+{{- define "k8s-gpu-dashboard-backend.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "k8s-gpu-dashboard-backend.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
 {{/*
 Create the name of the service account to use
 */}}
-{{- define "k8s-gpu-dashboard.serviceAccountName" -}}
+{{- define "k8s-gpu-dashboard-backend.serviceAccountName" -}}
 {{- if .Values.serviceAccount.create }}
-{{- default (include "k8s-gpu-dashboard.fullname" .) .Values.serviceAccount.name }}
+{{- default (include "k8s-gpu-dashboard-backend.fullname" .) .Values.serviceAccount.name }}
 {{- else }}
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}

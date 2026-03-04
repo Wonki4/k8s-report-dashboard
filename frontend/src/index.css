@@ -629,7 +629,7 @@ header h1 { font-size: 18px; font-weight: 600; letter-spacing: -0.5px; }
   cursor: pointer;
   transition: all 0.15s;
 }
-.wl-mode-btn:first-child { border-right: 1px solid var(--border); }
+.wl-mode-btn:not(:last-child) { border-right: 1px solid var(--border); }
 .wl-mode-btn:hover { color: var(--text); }
 .wl-mode-btn.active {
   background: rgba(59, 130, 246, 0.15);
@@ -902,6 +902,32 @@ header h1 { font-size: 18px; font-weight: 600; letter-spacing: -0.5px; }
   white-space: nowrap;
 }
 
+
+/* GPU-Type-grouped table columns */
+.wl-table-header.wl-by-gpu-type, .wl-node-row.wl-by-gpu-type {
+  grid-template-columns: 1fr 80px 80px 80px 100px 100px;
+}
+.wl-col-gpu-type {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+}
+.wl-gpu-type-badge {
+  padding: 3px 10px;
+  background: rgba(6, 182, 212, 0.1);
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--cyan);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wl-pod-row.wl-pod-by-gpu-type {
+  grid-template-columns: 70px 1fr 180px 60px 80px 90px;
+}
+
 @media (max-width: 900px) {
   .wl-filter { flex-wrap: wrap; }
   .wl-summary { flex-wrap: wrap; }
@@ -911,3 +937,5 @@ header h1 { font-size: 18px; font-weight: 600; letter-spacing: -0.5px; }
 }
   .wl-table-header.wl-by-owner, .wl-node-row.wl-by-owner { grid-template-columns: 1fr 60px 60px 60px 70px 70px; }
   .wl-pod-row.wl-pod-by-owner { grid-template-columns: 60px 1fr 120px 50px 60px 70px; padding-left: 32px; }
+  .wl-table-header.wl-by-gpu-type, .wl-node-row.wl-by-gpu-type { grid-template-columns: 1fr 60px 60px 60px 70px 70px; }
+  .wl-pod-row.wl-pod-by-gpu-type { grid-template-columns: 60px 1fr 120px 50px 60px 70px; padding-left: 32px; }

@@ -1,0 +1,60 @@
+replicaCount: 1
+
+image:
+  repository: gpu-dashboard-backend
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+rbac:
+  create: true
+
+service:
+  type: ClusterIP
+  port: 8000
+
+env:
+  DASHBOARD_HOST: "0.0.0.0"
+  DASHBOARD_PORT: "8000"
+  CORS_ORIGINS: "*"
+  PYTHONUNBUFFERED: "1"
+  CACHE_TTL: "30"
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+probes:
+  liveness:
+    path: /healthz
+    initialDelaySeconds: 10
+    periodSeconds: 15
+  readiness:
+    path: /healthz
+    initialDelaySeconds: 5
+    periodSeconds: 10
+
+kubeconfig:
+  enabled: false
+  existingSecret: ""
+  data: ""
+  mountPath: /etc/kubeconfig
+  fileName: config
